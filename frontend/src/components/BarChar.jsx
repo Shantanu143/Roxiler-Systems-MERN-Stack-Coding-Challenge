@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import Chart from "react-google-charts";
-import axios from 'axios';
-const BarChar = ({ month }) => {
+import axios from "axios";
+import { API_BASE_URL } from "../../config/ApiConfig";
+
+import PropTypes from "prop-types";
+
+const BarChart = ({ month }) => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,8 +18,9 @@ const BarChar = ({ month }) => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/bar-chart?month=${selectedMonth}`
+        `${API_BASE_URL}/api/bar-chart?month=${selectedMonth}`
       );
+
       setChartData(response.data);
       setError(null); // Reset error state on successful fetch
     } catch (error) {
@@ -27,21 +32,51 @@ const BarChar = ({ month }) => {
   };
 
   const options = {
+    legend: "none",
     chart: {
       title: "Sales by Price Range",
       subtitle: "Based on sales count",
     },
+
+    options: {
+      backgroundColor: "#c93535",
+    },
+    series: {
+      0: { color: "#72F2F2" },
+    },
+  };
+
+  const getMonthName = (monthNumber) => {
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    return monthNames[monthNumber - 1];
   };
 
   return (
-    <div>
-      <h2>Sales by Price Range for {month}</h2>
+    <div className="my-10 ">
+      <h1 className="text-3xl py-2 font-bold ">
+        Bar Chart State - {getMonthName(month)}
+      </h1>
       {loading ? (
         <div>Loading Chart...</div>
       ) : error ? (
         <div>{error}</div>
       ) : (
         <Chart
+          className="flex items-center justify-center p-10"
           width={"100%"}
           height={"400px"}
           chartType="Bar"
@@ -50,11 +85,15 @@ const BarChar = ({ month }) => {
             ...chartData.map((item) => [item.range, item.count]),
           ]}
           options={options}
-          loader={<div>Loading Chart...</div>} // Optional: Loader component if chart is still loading
+          loader={<div>Loading Chart...</div>}
         />
       )}
     </div>
   );
 };
 
-export default BarChar;
+// Add prop validation
+BarChart.propTypes = {
+  month: PropTypes.string.isRequired,
+};
+export default BarChart;
