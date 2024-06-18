@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import Chart from "react-google-charts";
 import axios from "axios";
-import { API_BASE_URL } from "../../config/ApiConfig";
 
 import PropTypes from "prop-types";
+import { API_BASE_URL } from "../config/ApiConfig";
 
 const BarChart = ({ month }) => {
   const [chartData, setChartData] = useState([]);

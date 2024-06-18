@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import PropTypes from "prop-types";
-import { API_BASE_URL } from "../../config/ApiConfig";
+import { API_BASE_URL } from "../config/ApiConfig";
 // TransactionsTable component
 const TransactionsTable = ({ month, search }) => {
   // State hooks for managing transactions data and pagination
@@ -29,7 +29,7 @@ const TransactionsTable = ({ month, search }) => {
   return (
     <div className="my-10 overflow-x-auto">
       {/* Table to display transactions */}
-      <table className="border-collapse border-3 border-slate-500 bg-yellow-300 w-full">
+      <table className="border-collapse border-3 rounded-lg border-slate-500 bg-yellow-300 w-full">
         <thead>
           <tr>
             <th className="border-3 border-slate-600 p-3">Title</th>

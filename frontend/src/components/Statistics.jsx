@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { API_BASE_URL } from "../../config/ApiConfig";
+import { API_BASE_URL } from "../config/ApiConfig";
 
 // eslint-disable-next-line react/prop-types
 const Statistics = ({ month }) => {

@@ -1,5 +1,7 @@
 const Product = require("../models/productModel");
 const moment = require("moment");
+const axios = require("axios");
+
 const initializeDatabase = async (req, res) => {
   try {
     const { data } = await axios.get(process.env.API_URL);
@@ -11,58 +13,57 @@ const initializeDatabase = async (req, res) => {
 };
 
 const getTransactions = async (req, res) => {
-    const { month, search = "", page = 1, perPage = 10 } = req.query;
-  
-    let startDate2021, endDate2021, startDate2022, endDate2022;
-    if (month) {
-      startDate2021 = new Date(`2021-${month}-01`);
-      endDate2021 = new Date(startDate2021);
-      endDate2021.setMonth(endDate2021.getMonth() + 1);
-  
-      startDate2022 = new Date(`2022-${month}-01`);
-      endDate2022 = new Date(startDate2022);
-      endDate2022.setMonth(endDate2022.getMonth() + 1);
-    }
-  
-    const searchQuery = {
-      $or: [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ],
-    };
-  
-    if (startDate2021 && endDate2021 && startDate2022 && endDate2022) {
-      searchQuery.$and = [
-        {
-          $or: [
-            { dateOfSale: { $gte: startDate2021, $lt: endDate2021 } },
-            { dateOfSale: { $gte: startDate2022, $lt: endDate2022 } },
-          ],
-        },
-      ];
-    }
-  
-    try {
-      const transactions = await Product.find(searchQuery)
-        .skip((page - 1) * perPage)
-        .limit(parseInt(perPage));
-  
-      res.status(200).json(transactions);
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-      res
-        .status(500)
-        .json({ error: "Internal Server Error", details: error.message });
-    }
+  const { month, search = "", page = 1, perPage = 10 } = req.query;
+
+  let startDate2021, endDate2021, startDate2022, endDate2022;
+  if (month) {
+    startDate2021 = new Date(`2021-${month}-01`);
+    endDate2021 = new Date(startDate2021);
+    endDate2021.setMonth(endDate2021.getMonth() + 1);
+
+    startDate2022 = new Date(`2022-${month}-01`);
+    endDate2022 = new Date(startDate2022);
+    endDate2022.setMonth(endDate2022.getMonth() + 1);
+  }
+
+  const searchQuery = {
+    $or: [
+      { title: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+    ],
   };
 
+  if (startDate2021 && endDate2021 && startDate2022 && endDate2022) {
+    searchQuery.$and = [
+      {
+        $or: [
+          { dateOfSale: { $gte: startDate2021, $lt: endDate2021 } },
+          { dateOfSale: { $gte: startDate2022, $lt: endDate2022 } },
+        ],
+      },
+    ];
+  }
+
+  try {
+    const transactions = await Product.find(searchQuery)
+      .skip((page - 1) * perPage)
+      .limit(parseInt(perPage));
+
+    res.status(200).json(transactions);
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", details: error.message });
+  }
+};
 
 const getStatistics = async (req, res) => {
   const { month } = req.query;
 
   try {
     // Validate month parameter
-    if (!month || !/^\d{2}$/.test(month)) {
+    if (!isValidMonthFormat(month)) {
       return res.status(400).json({
         error:
           "Invalid month format. Please provide a valid month in MM format.",
@@ -149,10 +150,10 @@ const getBarChartData = async (req, res) => {
   const { month } = req.query;
 
   // Ensure month parameter is provided and valid
-  if (!month || !/^\d{2}$/.test(month)) {
-    return res
-      .status(400)
-      .send("Invalid month format. Please provide a valid month in MM format.");
+  if (!isValidMonthFormat(month)) {
+    return res.status(400).json({
+      error: "Invalid month format. Please provide a valid month in MM format.",
+    });
   }
 
   // Calculate start and end dates for the month
@@ -195,7 +196,7 @@ const getPieChartData = async (req, res) => {
   const { month } = req.query;
 
   // Validate month parameter
-  if (!month || !/^\d{2}$/.test(month)) {
+  if (!isValidMonthFormat(month)) {
     return res.status(400).json({
       error: "Invalid month format. Please provide a valid month in MM format.",
     });
@@ -244,22 +245,47 @@ const getCombinedData = async (req, res) => {
   const { month } = req.query;
 
   try {
-    const [transactions, statistics, barChart, pieChart] = await Promise.all([
-      axios.get(`http://localhost:5000/api/transactions?month=${month}`),
-      axios.get(`http://localhost:5000/api/statistics?month=${month}`),
-      axios.get(`http://localhost:5000/api/bar-chart?month=${month}`),
-      axios.get(`http://localhost:5000/api/pie-chart?month=${month}`),
+    // Check if month is in MM format (e.g., "03" for March)
+    if (!isValidMonthFormat(month)) {
+      return res.status(400).json({
+        error:
+          "Invalid month format. Please provide a valid month in MM format.",
+      });
+    }
+
+    // Send all requests concurrently using Promise.all
+    const [
+      transactionsResponse,
+      statisticsResponse,
+      barChartResponse,
+      pieChartResponse,
+    ] = await Promise.all([
+      axios.get(`http://localhost:5000/api/transactions`, {
+        params: { month },
+      }),
+      axios.get(`http://localhost:5000/api/statistics`, { params: { month } }),
+      axios.get(`http://localhost:5000/api/bar-chart`, { params: { month } }),
+      axios.get(`http://localhost:5000/api/pie-chart`, { params: { month } }),
     ]);
 
-    res.status(200).json({
-      transactions: transactions.data,
-      statistics: statistics.data,
-      barChart: barChart.data,
-      pieChart: pieChart.data,
-    });
+    // Destructure data from each response
+    const { data: transactions } = transactionsResponse;
+    const { data: statistics } = statisticsResponse;
+    const { data: barChart } = barChartResponse;
+    const { data: pieChart } = pieChartResponse;
+
+    // Return combined data as JSON response
+    res.status(200).json({ transactions, statistics, barChart, pieChart });
   } catch (error) {
-    res.status(500).send("Error fetching combined data");
+    // Handle errors
+    console.error("Error fetching combined data:", error);
+    res.status(500).json({ error: "Error fetching combined data" });
   }
+};
+
+// Function to validate month format (MM)
+const isValidMonthFormat = (month) => {
+  return /^\d{2}$/.test(month); // Checks if month is exactly two digits
 };
 
 module.exports = {
